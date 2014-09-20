@@ -19,7 +19,7 @@ app.useBefore('router', function parseQuery(req, res, next){
   req.repo = pathname[1];
   req.file = parsed.split(req.repo)[1].slice(1) || 'index.styl';
 
-  req.pathname = req._parsedUrl.path.slice(1);
+  req.pathname = req._parsedUrl.path.slice(1).replace('&cached=false', '');
   res.cache = resolve(tmpdir, req.pathname.replace(/\//g, '~'));
 
   req.options = {
@@ -96,7 +96,6 @@ function readFile(req, res, fn){
 }
 
 function render(req, res, fn){
-
   stylus.render(req.raw, {paths: req.paths, compress: req.options.compress}, function(err, css){
     if (err) return res.status(500).send(err);
     res.css = css;
