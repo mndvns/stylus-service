@@ -57,4 +57,23 @@ describe('stylus-service', function(){
       });
   });
 
+  it('should allow passing options', function(done){
+    request(server)
+      .get('/shoelace-ui/p?p--margin=20px&compress=false')
+      .expect(200)
+      .end(function(err, res){
+        res.text.should.eql('p {\n  margin: 0 0 20px;\n}\n');
+        done();
+      });
+  });
+
+  it('should allow overriding cache', function(done){
+    request(server)
+      .get('/shoelace-ui/p?p--margin=20px&cached=false')
+      .expect(200)
+      .end(function(err, res){
+        done();
+      });
+  });
+
 });

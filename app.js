@@ -7,7 +7,6 @@ var os = require('os');
 var exec = require('child_process').exec;
 var resolve = require('path').resolve;
 var dirname = require('path').dirname;
-var async = require('async');
 
 var app = module.exports = stack();
 
@@ -21,11 +20,17 @@ app.useBefore('router', function parseQuery(req, res, next){
   req.file = parsed.split(req.repo)[1].slice(1) || 'index.styl';
 
   req.pathname = req._parsedUrl.path.slice(1);
-  res.cache = resolve(tmpdir, req.pathname.replace(/\//g, '~') + (req._parsedUrl.query || ''));
+  res.cache = resolve(tmpdir, req.pathname.replace(/\//g, '~'));
+
+  req.options = {
+    compress: true,
+    cached: true
+  };
 
   var buf='';
   for (var key in req.query){
-    buf += key + ' ?= ' + req.query[key] + '\n';
+    if (req.options[key]) req.options[key] = (req.query[key] === 'true');
+    else buf += key + ' ?= ' + req.query[key] + '\n';
   }
   req.variables = buf;
   req.raw = buf;
@@ -56,10 +61,12 @@ app.get('*', function(req, res){
 
 function readCache(req, res, fn){
   fs.exists(res.cache, function(exists){
-    if (!exists) return fn();
+    if (!exists || !req.options.cached) return fn();
     fs.readFile(res.cache, 'utf8', function(err, data){
       if (err) return res.status(500).send(err);
-      res.status(200).send(data);
+      res.status(200);
+      res.type('css');
+      res.send(data);
     });
   });
 }
@@ -89,7 +96,8 @@ function readFile(req, res, fn){
 }
 
 function render(req, res, fn){
-  stylus.render(req.raw, {paths: req.paths, compress: true}, function(err, css){
+
+  stylus.render(req.raw, {paths: req.paths, compress: req.options.compress}, function(err, css){
     if (err) return res.status(500).send(err);
     res.css = css;
     res.type('css');
