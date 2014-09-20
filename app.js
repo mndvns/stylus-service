@@ -18,7 +18,7 @@ app.get('/:org/:repo/:file', function(req, res){
   clone(org, repo, function(err){
     if (err) return res.status(404).send('repository not found');
     install(repo, function(err){
-      if (err) return res.status(500).send('something went wrong');
+      if (err) return res.status(500).send(err);
       readFile(repo, file, res);
     });
   });
@@ -26,8 +26,10 @@ app.get('/:org/:repo/:file', function(req, res){
 });
 
 function install(path, fn){
-  exec('npm install', {cwd: tmpdir + path}, function(err){
-    if (err) return fn(err);
+  var path = tmpdir + path
+  debug('path', path);
+  exec('npm install', {cwd: path}, function(err){
+    if (err) return fn('could not install at ' + path);
     fn();
   });
 }
@@ -46,12 +48,6 @@ function readFile(repo, file, res){
 
   });
 }
-
-
-function error(res, status, msg){
-  res.status(status).send(msg);
-}
-
 
 function update(repo, fn){
   exec('git pull origin master', {cwd: tmpdir + '/' + repo}, function(err, stdout, stderr){
