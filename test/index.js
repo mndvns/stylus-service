@@ -7,21 +7,26 @@ process.stdout.write('\u001B[2J');
 
 
 describe('GET', function(){
-  it('should work', function(done){
-    readFile(__dirname + '/test.styl', function(data){
-      request(server)
-        .get('/' + data)
-        .end(function(err, res){
-          // console.log(res);
-          console.log(res.text);
-          done();
-        });
-    });
+  it('should fail if repo is nonexistent', function(done){
+    request(server)
+      .get('/shoelace-ui/zzz/index.styl')
+      .expect(404, done);
   });
 
-  function readFile(path, fn){
-    fs.readFile(path, 'base64', function(err, buf){
-      fn(buf);
-    });
-  }
+  it('should fail if file is nonexistent', function(done){
+    request(server)
+      .get('/shoelace-ui/button/foobar.styl')
+      .expect(404, done);
+  });
+
+  it('should render file', function(done){
+    request(server)
+      .get('/shoelace-ui/button/index.styl')
+      .expect(200)
+      .end(function(err, res){
+        console.log(res.text);
+        done();
+      });
+  });
+
 });

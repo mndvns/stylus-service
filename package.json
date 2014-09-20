@@ -17,11 +17,12 @@
     "simple-stack-common": "^0.2.3",
     "stylus": "^0.48.1",
     "envs": "^0.1.6",
-    "shoelace-ui-aglet": "^0.1.1"
+    "npm": "^2.0.0"
   },
   "devDependencies": {
     "supertest": "^0.13.0",
     "should": "^4.0.4",
-    "mocha": "^1.21.4"
+    "mocha": "^1.21.4",
+    "debug": "^2.0.0"
   }
 }
