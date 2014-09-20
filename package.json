@@ -18,7 +18,8 @@
     "stylus": "^0.48.1",
     "envs": "^0.1.6",
     "npm": "^2.0.0",
-    "debug": "^2.0.0"
+    "debug": "^2.0.0",
+    "async": "^0.9.0"
   },
   "devDependencies": {
     "supertest": "^0.13.0",

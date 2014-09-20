@@ -6,60 +6,112 @@ var fs = require('fs');
 var os = require('os');
 var exec = require('child_process').exec;
 var resolve = require('path').resolve;
+var dirname = require('path').dirname;
+var async = require('async');
 
 var app = module.exports = stack();
 
 var tmpdir = os.tmpdir();
 
-app.get('/:org/:repo/:file', function(req, res){
-  var org = req.params.org;
-  var repo = req.params.repo;
-  var file = req.params.file;
+app.useBefore('router', function parseQuery(req, res, next){
+  var parsed = req._parsedUrl.pathname;
+  var pathname = parsed.split('/').slice(1);
+  req.org = pathname[0];
+  req.repo = pathname[1];
+  req.file = parsed.split(req.repo)[1].slice(1) || 'index.styl';
 
-  clone(org, repo, res, function(){
-    install(repo, res, function(){
-      readFile(repo, file, res);
+  req.pathname = req._parsedUrl.path.slice(1);
+  res.cache = resolve(tmpdir, req.pathname.replace(/\//g, '~') + (req._parsedUrl.query || ''));
+
+  var buf='';
+  for (var key in req.query){
+    buf += key + ' ?= ' + req.query[key] + '\n';
+  }
+  req.variables = buf;
+  req.raw = buf;
+
+  req.paths = [
+    resolve(tmpdir, req.repo),
+    resolve(tmpdir, req.repo, 'node_modules')
+  ];
+
+  // if file is nested, add its dir to lookup paths
+  if (~req.file.indexOf('/')) req.paths.push(resolve(tmpdir, req.repo, dirname(req.file)))
+
+  next();
+});
+
+app.get('*', function(req, res){
+  readCache(req, res, function(){
+    clone(req, res, function(){
+      install(req, res, function(){
+        readFile(req, res, function(){
+          writeCache(req, res, function(){
+          });
+        });
+      });
     });
   });
 });
 
-function install(path, res, fn){
-  path = resolve(tmpdir, path);
-  exec('npm install', {cwd: path}, function(err){
-    if (err) return res.status(500).send('could not install at ' + path);
-    fn();
-  });
-}
-
-function readFile(repo, file, res){
-  var path = resolve(tmpdir, repo);
-  var filepath = resolve(tmpdir, repo, file);
-
-  fs.readFile(filepath, 'utf8', function(err, data){
-    if (err) return res.status(404).send(err);
-    stylus.render(data, {paths: [path, path + '/node_modules']}, function(err, css){
+function readCache(req, res, fn){
+  fs.exists(res.cache, function(exists){
+    if (!exists) return fn();
+    fs.readFile(res.cache, 'utf8', function(err, data){
       if (err) return res.status(500).send(err);
-      res.type('css');
-      res.send(css);
+      res.status(200).send(data);
     });
   });
-
 }
 
-function update(repo, res, fn){
-  exec('git pull origin master', {cwd: tmpdir + '/' + repo}, function(err, stdout, stderr){
+function writeCache(req, res, fn){
+  fs.writeFile(res.cache, res.css, 'utf8', function(err){
+    if (err) return console.error(err);
+  });
+}
+
+function install(req, res, fn){
+  var path = resolve(tmpdir, req.repo);
+  exec('npm install', {cwd: path}, function(err){
+    if (err) return res.status(500).send('could not install at ' + path);
+    fn(req, res);
+  });
+}
+
+function readFile(req, res, fn){
+  var path = resolve(tmpdir, req.repo);
+  var filepath = resolve(tmpdir, req.repo, req.file);
+  fs.readFile(filepath, 'utf8', function(err, data){
+    if (err) return res.status(404).send(err);
+    req.raw += data;
+    render(req, res, fn);
+  });
+}
+
+function render(req, res, fn){
+  stylus.render(req.raw, {paths: req.paths, compress: true}, function(err, css){
     if (err) return res.status(500).send(err);
-    debug('updated', repo);
+    res.css = css;
+    res.type('css');
+    res.send(css);
     fn();
   });
 }
 
-function clone(org, repo, res, fn){
-  var dest = 'https://github.com/' + org + '/' + repo + '.git';
+function update(req, res, fn){
+  exec('git pull origin master', {cwd: resolve(tmpdir, req.repo)}, function(err, stdout, stderr){
+    if (err) return res.status(500).send(err);
+    debug('updated', req.repo);
+    fn();
+  });
+}
+
+function clone(req, res, fn){
+  var dest = 'https://github.com/' + req.org + '/' + req.repo + '.git';
   exec('git clone ' + dest, {cwd: tmpdir}, function(err, stdout, stderr){
     if (stderr && ~stderr.indexOf('Repository not found')) return res.status(404).send('repository not found')
-    if (err) return update(repo, res, fn);
-    debug('cloned', + org + '/' + repo);
+    if (stderr && ~stderr.indexOf('already exists')) return update(req, res, fn);
+    debug('cloned', + req.org + '/' + req.repo);
     fn();
   });
 }
