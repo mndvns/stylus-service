@@ -1,0 +1,27 @@
+{
+  "name": "stylus-service",
+  "version": "0.1.0",
+  "description": "Stylus service",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "stylus",
+    "service"
+  ],
+  "author": "Michael Andrew Vanasse <mail@mndvns.com>",
+  "license": "MIT",
+  "dependencies": {
+    "startup": "^1.0.0",
+    "simple-stack-common": "^0.2.3",
+    "stylus": "^0.48.1",
+    "envs": "^0.1.6",
+    "shoelace-ui-aglet": "^0.1.1"
+  },
+  "devDependencies": {
+    "supertest": "^0.13.0",
+    "should": "^4.0.4",
+    "mocha": "^1.21.4"
+  }
+}
